@@ -3,7 +3,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
-#include <math.h>  
+#include <math.h> 
+#include <limits.h> 
 
 #define PPM_SCALER 25
 #define WIDTH 51
@@ -114,8 +115,7 @@ float feedForward(Layer inputs, Layer weights)
     return outputs;
 }
 
-static Layer inputs;
-static Layer weights;
+
 
 int randRange(int low, int high)
 {
@@ -123,26 +123,58 @@ int randRange(int low, int high)
     return rand() % (high - low ) + low;
 }
 
-int main(void)
+void layerRandomRect(Layer layer)
 {
-    char file_path[256];
-
-    for (int i = 0; i < SAMPLE_SIZE; ++i) {
-        printf("[INFO] generating rectangle %d\n", i);
-
-        layerDrawRect(inputs, 0, 0, WIDTH, HEIGHT, 0.0f);
+    layerDrawRect(layer, 0, 0, WIDTH, HEIGHT, 0.0f);
         int x = randRange(0, WIDTH);
         int y = randRange(0, HEIGHT);
-        int w = randRange(1, WIDTH);
-        int h = randRange(1, HEIGHT);
-        layerDrawRect(inputs, x, y, w, h, 1.0f);
+        
+        int w = WIDTH - x;
+        if (w<2) w = 2;
+        w = randRange(1, w);
+        
+        int h = HEIGHT - y; 
+        if (h<2) h = 2;
+        h = randRange(1, h);
+        layerDrawRect(layer, x, y, w, h, 1.0f);
+}
 
-        snprintf(file_path, sizeof(file_path), "rectangle-%02d.bin", i);
+void layerRandomCircle(Layer layer)
+{
+    layerDrawRect(layer, 0, 0, WIDTH, HEIGHT, 0.0f);
+        int cx = randRange(0, WIDTH);
+        int cy = randRange(0, HEIGHT);
+        int r = INT_MAX;
+        if (r>cx) r = cx;
+        if (r>cy) r = cy;
+        if (r>WIDTH-cx) r = WIDTH-cx;
+        if (r>HEIGHT-cy) r = HEIGHT-cy;
+        if (r<2) r = 2;
+        r = randRange(1, r);
+        layerDrawCircle(layer, cx, cy, r, 1.0f);
+}
+
+static Layer inputs;
+static Layer weights;
+
+int main(void)
+{
+    
+    char file_path[256];
+
+#define PREFIX "rectangle"
+    for (int i = 0; i < SAMPLE_SIZE; ++i) {
+        printf("[INFO] generating "PREFIX" %d\n", i);
+
+        layerRandomRect(inputs);
+
+        snprintf(file_path, sizeof(file_path), PREFIX"-%02d.bin", i);
         layerSaveAsBin(inputs, file_path);
-        snprintf(file_path, sizeof(file_path), "rectangle-%02d.ppm", i);
+        snprintf(file_path, sizeof(file_path), PREFIX"-%02d.ppm", i);
         layerSaveAsPPM(inputs, file_path);
         
     }
+    
     
     
 
