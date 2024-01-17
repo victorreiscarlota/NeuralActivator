@@ -127,8 +127,8 @@ int main(void)
 {
     char file_path[256];
 
-    for (int i = 0; i <= SAMPLE_SIZE; ++i) {
-        printf("[INFO] generating rect %d\n", i);
+    for (int i = 0; i < SAMPLE_SIZE; ++i) {
+        printf("[INFO] generating rectangle %d\n", i);
 
         layerDrawRect(inputs, 0, 0, WIDTH, HEIGHT, 0.0f);
         int x = randRange(0, WIDTH);
@@ -137,12 +137,14 @@ int main(void)
         int h = randRange(1, HEIGHT);
         layerDrawRect(inputs, x, y, w, h, 1.0f);
 
-        snprintf(file_path, sizeof(file_path), "rect-%02d.bin", i);
+        snprintf(file_path, sizeof(file_path), "rectangle-%02d.bin", i);
         layerSaveAsBin(inputs, file_path);
-        snprintf(file_path, sizeof(file_path), "rect-%02d.ppm", i);
+        snprintf(file_path, sizeof(file_path), "rectangle-%02d.ppm", i);
         layerSaveAsPPM(inputs, file_path);
-        //Hello
+        
     }
+    
+    
 
     return 0;
 }
