@@ -6,12 +6,14 @@
 #include <math.h>
 #include <limits.h>
 #include <float.h>
+#include <stdbool.h>
 
+#define TRAIN_PASSES 2000
 #define PPM_SCALER 25
 #define WIDTH 201
 #define HEIGHT 201
 #define BIAS 10.0
-#define SAMPLE_SIZE 100
+#define SAMPLE_SIZE 2000
 
 typedef float Layer[HEIGHT][WIDTH];
 
@@ -67,12 +69,15 @@ void layerSaveAsPPM(Layer layer, const char *file_path)
 {
     float min = FLT_MAX;
     float max = FLT_MIN;
-    for (int y = 0; y < HEIGHT-1; y++)
+    for (int y = 0; y < HEIGHT - 1; y++)
     {
-        for (int x = 0; x < WIDTH; x++) {
+        for (int x = 0; x < WIDTH; x++)
+        {
             float s = layer[y][x];
-            if (layer[y][x] < min) min = layer[y][x];
-            if (layer[y][x] > max) max = layer[y][x];
+            if (layer[y][x] < min)
+                min = layer[y][x];
+            if (layer[y][x] > max)
+                max = layer[y][x];
         }
     }
 
@@ -88,14 +93,13 @@ void layerSaveAsPPM(Layer layer, const char *file_path)
 
     for (int y = 0; y < HEIGHT * PPM_SCALER; y++)
     {
-        for (int x = 0; x < WIDTH * PPM_SCALER; x++) {
+        for (int x = 0; x < WIDTH * PPM_SCALER; x++)
+        {
             float s = (layer[y / PPM_SCALER][x / PPM_SCALER] - min) / (max - min);
-            float s = layer[y / PPM_SCALER][x / PPM_SCALER];
             char pixel[3] = {
+                (char)floorf(255 * (1.0f - s)),
                 (char)floorf(255 * s),
-                0,
-                0
-            };
+                0};
             fwrite(pixel, sizeof(pixel), 1, f);
         }
     }
@@ -205,24 +209,65 @@ void layerRandomCircle(Layer layer)
 static Layer inputs;
 static Layer weights;
 
-int main(void)
+int trainPass(Layer inputs, Layer weights)
 {
-
-    srand(69);
-
+    int adjusted = 0;
     for (int i = 0; i < SAMPLE_SIZE; i++)
     {
         layerRandomRect(inputs);
-            if (feedForward(inputs, weights) > BIAS)
-            {
-                subInputsFromWeights(inputs, weights);
-            }
-        layerRandomCircle(inputs);
-            if (feedForward(inputs, weights) < BIAS)
-            {
-                addInputsToWeights(inputs, weights);
-            }
+        if (feedForward(inputs, weights) > BIAS)
+        {
+            subInputsFromWeights(inputs, weights);
+            adjusted += 1;
         }
-    
-        return 0;
+        layerRandomCircle(inputs);
+        if (feedForward(inputs, weights) < BIAS)
+        {
+            addInputsToWeights(inputs, weights);
+            adjusted += 1;
+        }
     }
+    return adjusted;
+}
+
+int checkPass(Layer inputs, Layer weights)
+{
+    int adjusted = 0;
+    for (int i = 0; i < SAMPLE_SIZE; i++)
+    {
+        layerRandomRect(inputs);
+        if (feedForward(inputs, weights) > BIAS)
+        {
+
+            adjusted += 1;
+        }
+        layerRandomCircle(inputs);
+        if (feedForward(inputs, weights) < BIAS)
+        {
+
+            adjusted += 1;
+        }
+    }
+    return adjusted;
+}
+
+int main(void)
+{
+    srand(420);
+    int adj = checkPass(inputs, weights);
+    printf("The fail rate of untrained model is %f\n", adj / (SAMPLE_SIZE * 2.0));
+    for (int i = 0; i < TRAIN_PASSES; i++)
+    {
+        srand(69);
+        int adj = trainPass(inputs, weights);
+        printf("adjusted %d times\n", adj);
+        if (adj <= 0)
+            break;
+    }
+
+    srand(420);
+    adj = checkPass(inputs, weights);
+    printf("The fail rate of trained model is %f\n", adj / (SAMPLE_SIZE * 2.0));
+    
+    return 0;
+}
