@@ -1,19 +1,17 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <errno.h>
+#include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 #include <math.h>
 #include <limits.h>
 #include <float.h>
-#include <stdbool.h>
 
-#define TRAIN_PASSES 2000
-#define PPM_SCALER 25
-#define WIDTH 201
-#define HEIGHT 201
-#define BIAS 10.0
-#define SAMPLE_SIZE 2000
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "./config.h"
 
 typedef float Layer[HEIGHT][WIDTH];
 
@@ -67,19 +65,6 @@ void layerDrawCircle(Layer layer, int cx, int cy, int r, float value)
 
 void layerSaveAsPPM(Layer layer, const char *file_path)
 {
-    float min = FLT_MAX;
-    float max = FLT_MIN;
-    for (int y = 0; y < HEIGHT - 1; y++)
-    {
-        for (int x = 0; x < WIDTH; x++)
-        {
-            float s = layer[y][x];
-            if (layer[y][x] < min)
-                min = layer[y][x];
-            if (layer[y][x] > max)
-                max = layer[y][x];
-        }
-    }
 
     FILE *f = fopen(file_path, "wb");
 
@@ -91,15 +76,15 @@ void layerSaveAsPPM(Layer layer, const char *file_path)
 
     fprintf(f, "P6\n%d %d 255\n", WIDTH * PPM_SCALER, HEIGHT * PPM_SCALER);
 
-    for (int y = 0; y < HEIGHT * PPM_SCALER; y++)
-    {
-        for (int x = 0; x < WIDTH * PPM_SCALER; x++)
-        {
-            float s = (layer[y / PPM_SCALER][x / PPM_SCALER] - min) / (max - min);
+    for (int y = 0; y < HEIGHT * PPM_SCALER; ++y) {
+        for (int x = 0; x < WIDTH * PPM_SCALER; ++x) {
+            float s = (layer[y / PPM_SCALER][x / PPM_SCALER] + PPM_RANGE) / (2.0f * PPM_RANGE);
             char pixel[3] = {
-                (char)floorf(255 * (1.0f - s)),
-                (char)floorf(255 * s),
-                0};
+                (char) floorf(PPM_COLOR_INTENSITY * (1.0f - s)),
+                (char) floorf(PPM_COLOR_INTENSITY * (1.0f - s)),
+                (char) floorf(PPM_COLOR_INTENSITY * s),
+            };
+
             fwrite(pixel, sizeof(pixel), 1, f);
         }
     }
@@ -122,6 +107,8 @@ void layerSaveAsBin(Layer layer, const char *file_path)
 
 void layerLoadFromBin(Layer layer, const char *file_path)
 {
+    (void) layer;
+    (void) file_path;
     assert(0 && "TODO: layerLoadFromBin is not implemented yet!");
 }
 
@@ -206,27 +193,57 @@ void layerRandomCircle(Layer layer)
     layerDrawCircle(layer, cx, cy, r, 1.0f);
 }
 
+
+
+
 static Layer inputs;
 static Layer weights;
 
-int trainPass(Layer inputs, Layer weights)
+float calculateAverageOutput(Layer inputs, Layer weights)
 {
-    int adjusted = 0;
+    float sum = 0.0f;
+    
     for (int i = 0; i < SAMPLE_SIZE; i++)
     {
         layerRandomRect(inputs);
-        if (feedForward(inputs, weights) > BIAS)
-        {
+        sum += feedForward(inputs, weights);
+
+        layerRandomCircle(inputs);
+        sum += feedForward(inputs, weights);
+    }
+
+    return sum / (SAMPLE_SIZE * 2.0);
+}
+
+
+
+int trainPass(Layer inputs, Layer weights)
+{
+    static char file_path[256];
+    static int count = 0;
+
+    int adjusted = 0;
+
+    for (int i = 0; i < SAMPLE_SIZE; ++i) {
+        layerRandomRect(inputs);
+        if (feedForward(inputs, weights) > BIAS) {
             subInputsFromWeights(inputs, weights);
+            snprintf(file_path, sizeof(file_path), DATA_FOLDER"/weights-%03d.ppm", count++);
+            printf("[INFO] saving %s\n", file_path);
+            layerSaveAsPPM(weights, file_path);
             adjusted += 1;
         }
+
         layerRandomCircle(inputs);
-        if (feedForward(inputs, weights) < BIAS)
-        {
+        if (feedForward(inputs, weights) < BIAS) {
             addInputsToWeights(inputs, weights);
+            snprintf(file_path, sizeof(file_path), DATA_FOLDER"/weights-%03d.ppm", count++);
+            printf("[INFO] saving %s\n", file_path);
+            layerSaveAsPPM(weights, file_path);
             adjusted += 1;
         }
     }
+
     return adjusted;
 }
 
@@ -253,21 +270,27 @@ int checkPass(Layer inputs, Layer weights)
 
 int main(void)
 {
-    srand(420);
-    int adj = checkPass(inputs, weights);
-    printf("The fail rate of untrained model is %f\n", adj / (SAMPLE_SIZE * 2.0));
-    for (int i = 0; i < TRAIN_PASSES; i++)
-    {
-        srand(69);
-        int adj = trainPass(inputs, weights);
-        printf("adjusted %d times\n", adj);
-        if (adj <= 0)
-            break;
+    printf("[INFO] creating %s\n", DATA_FOLDER);
+    if (mkdir(DATA_FOLDER, 0755) < 0 && errno != EEXIST) {
+        fprintf(stderr, "ERROR: could not create folder %s: %s", DATA_FOLDER,
+                strerror(errno));
+        exit(1);
     }
 
-    srand(420);
+    srand(CHECK_SEED);
+    int adj = checkPass(inputs, weights);
+    printf("[INFO] fail rate of untrained model is %f\n", adj / (SAMPLE_SIZE * 2.0));
+
+    for (int i = 0; i < TRAIN_PASSES; ++i) {
+        srand(TRAIN_SEED);
+        int adj = trainPass(inputs, weights);
+        printf("[INFO] Pass %d: adjusted %d times\n", i, adj);
+        if (adj <= 0) break;
+    }
+
+    srand(CHECK_SEED);
     adj = checkPass(inputs, weights);
-    printf("The fail rate of trained model is %f\n", adj / (SAMPLE_SIZE * 2.0));
-    
+    printf("[INFO] fail rate of trained model is %f\n", adj / (SAMPLE_SIZE * 2.0));
+
     return 0;
 }
