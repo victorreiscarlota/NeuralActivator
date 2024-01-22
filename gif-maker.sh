@@ -2,10 +2,16 @@
 
 set -xe
 
-# Assuming gcc is the C compiler
-gcc -Wall -Wextra -ggdb -o main main.c -lm
+# Create an "output" folder if it doesn't exist
+mkdir -p output
 
-./main
-ffmpeg -y -i data/weights-%03d.ppm demo.mp4
-ffmpeg -y -i data/demo.mp4 -vf palettegen data/palette.png
-ffmpeg -y -i data/demo.mp4 -i data/palette.png -filter_complex paletteuse demo.gif
+# Assuming gcc is the C compiler
+gcc -Wall -Wextra -ggdb -o output/main main.c -lm
+
+# Run the compiled program
+./output/main
+
+# Process video and create gif inside the "output" folder
+ffmpeg -y -i data/weights-%03d.ppm output/test.mp4
+ffmpeg -y -i output/test.mp4 -vf palettegen output/palette.png
+ffmpeg -y -i output/test.mp4 -i output/palette.png -filter_complex paletteuse output/test.gif
