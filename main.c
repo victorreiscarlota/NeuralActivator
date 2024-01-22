@@ -7,6 +7,8 @@
 #include <math.h>
 #include <limits.h>
 #include <float.h>
+#include <direct.h>
+
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -215,6 +217,24 @@ float calculateAverageOutput(Layer inputs, Layer weights)
     return sum / (SAMPLE_SIZE * 2.0);
 }
 
+float calculateStandardDeviation(Layer inputs, Layer weights, float average)
+{
+    float sum = 0.0f;
+    float output = 0.0f;
+
+    for (int i = 0; i < SAMPLE_SIZE; i++)
+    {
+        layerRandomRect(inputs);
+        output = feedForward(inputs, weights);
+        sum += (output - average) * (output - average);
+
+        layerRandomCircle(inputs);
+        output = feedForward(inputs, weights);
+        sum += (output - average) * (output - average);
+    }
+
+    return sqrt(sum / (SAMPLE_SIZE * 2.0));
+}
 
 
 int trainPass(Layer inputs, Layer weights)
@@ -271,7 +291,7 @@ int checkPass(Layer inputs, Layer weights)
 int main(void)
 {
     printf("[INFO] creating %s\n", DATA_FOLDER);
-    if (mkdir(DATA_FOLDER, 0755) < 0 && errno != EEXIST) {
+    if (mkdir(DATA_FOLDER) < 0 && errno != EEXIST) {
         fprintf(stderr, "ERROR: could not create folder %s: %s", DATA_FOLDER,
                 strerror(errno));
         exit(1);
