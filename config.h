@@ -1,8 +1,8 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#define WIDTH 101
-#define HEIGHT 101
+#define WIDTH 20
+#define HEIGHT 20
 #define BIAS 20.0
 #define SAMPLE_SIZE 75
 #define TRAIN_PASSES 2000
