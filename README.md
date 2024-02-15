@@ -1,27 +1,25 @@
-# Project Name 
+# NeuralActivator
 ![test](./test.gif)
 
-Short description of your project.
+Project made based in this Veritasium video [https://www.youtube.com/watch?v=GVsUOuSjvcg&ab_channel=Veritasium]
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Usage](#usage)
 - [Contributing](#contributing)
-- [License](#license)
+
 
 ## Installation
 
-Instructions on how to install and set up your project.
+Git clone this repository and run it.
 
 ## Usage
 
-Instructions on how to use your project and any relevant examples.
+./build.sh
 
 ## Contributing
 
-Guidelines on how to contribute to your project and how others can get involved.
+Fork this project and pull request it to contribute.
 
-## License
 
-Information about the license for your project.
